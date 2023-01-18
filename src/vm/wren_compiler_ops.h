@@ -36,45 +36,7 @@ typedef struct
   bool isUpvalue;
 } Local;
 
-struct CompilerOps
-{
-  void (*classDefinition)(struct CompilerBase* compiler, bool isForeign);
-  void (*variableDefinition)(struct CompilerBase* compiler);
-  void (*attributeDefinition)(struct CompilerBase* compiler, bool runtimeAccess, Value group, Value key, Value value);
-  void (*import)(struct CompilerBase* compiler);
-  void (*breakStatement)(struct CompilerBase* compiler);
-  void (*continueStatement)(struct CompilerBase* compiler);
-  void (*forStatement)(struct CompilerBase* compiler);
-  void (*ifStatement)(struct CompilerBase* compiler);
-  void (*returnStatement)(struct CompilerBase* compiler);
-  void (*whileStatement)(struct CompilerBase* compiler);
-  void (*blockStatement)(struct CompilerBase* compiler);
-  void (*expressionStatement)(struct CompilerBase* compiler);
-
-  void (*discardAttributes)(struct CompilerBase* compiler);
-  int (*defineModuleVariable)(struct CompilerBase* compiler, Token* token);
-
-  void (*list)(struct CompilerBase* compiler, bool canAssign);
-  void (*subscript)(struct CompilerBase* compiler, bool canAssign);
-  void (*map)(struct CompilerBase* compiler, bool canAssign);
-  void (*call)(struct CompilerBase* compiler, bool canAssign);
-  void (*infixOp)(struct CompilerBase* compiler, bool canAssign);
-  void (*unaryOp)(struct CompilerBase* compiler, bool canAssign);
-  void (*or_)(struct CompilerBase* compiler, bool canAssign);
-  void (*and_)(struct CompilerBase* compiler, bool canAssign);
-  void (*conditional)(struct CompilerBase* compiler, bool canAssign);
-  void (*boolean)(struct CompilerBase* compiler, bool canAssign);
-  void (*null)(struct CompilerBase* compiler, bool canAssign);
-  void (*super_)(struct CompilerBase* compiler, bool canAssign);
-  void (*this_)(struct CompilerBase* compiler, bool canAssign);
-  void (*field)(struct CompilerBase* compiler, bool canAssign);
-  void (*staticField)(struct CompilerBase* compiler, bool canAssign);
-  void (*name)(struct CompilerBase* compiler, bool canAssign);
-  void (*literal)(struct CompilerBase* compiler, bool canAssign);
-  void (*stringInterpolation)(struct CompilerBase* compiler, bool canAssign);
-};
-
-typedef struct
+typedef struct CompilerBase_t
 {
   Parser* parser;
   void* derived;
@@ -91,5 +53,43 @@ typedef struct
   // The currently in scope local variables.
   Local locals[MAX_LOCALS];
 } CompilerBase;
+
+struct CompilerOps
+{
+  void (*classDefinition)(CompilerBase* compiler, bool isForeign);
+  void (*variableDefinition)(CompilerBase* compiler);
+  void (*attributeDefinition)(CompilerBase* compiler, bool runtimeAccess, Value group, Value key, Value value);
+  void (*import)(CompilerBase* compiler);
+  void (*breakStatement)(CompilerBase* compiler);
+  void (*continueStatement)(CompilerBase* compiler);
+  void (*forStatement)(CompilerBase* compiler);
+  void (*ifStatement)(CompilerBase* compiler);
+  void (*returnStatement)(CompilerBase* compiler);
+  void (*whileStatement)(CompilerBase* compiler);
+  void (*blockStatement)(CompilerBase* compiler);
+  void (*expressionStatement)(CompilerBase* compiler);
+
+  void (*discardAttributes)(CompilerBase* compiler);
+  int (*defineModuleVariable)(CompilerBase* compiler, Token* token);
+
+  void (*list)(CompilerBase* compiler, bool canAssign);
+  void (*subscript)(CompilerBase* compiler, bool canAssign);
+  void (*map)(CompilerBase* compiler, bool canAssign);
+  void (*call)(CompilerBase* compiler, bool canAssign);
+  void (*infixOp)(CompilerBase* compiler, bool canAssign);
+  void (*unaryOp)(CompilerBase* compiler, bool canAssign);
+  void (*or_)(CompilerBase* compiler, bool canAssign);
+  void (*and_)(CompilerBase* compiler, bool canAssign);
+  void (*conditional)(CompilerBase* compiler, bool canAssign);
+  void (*boolean)(CompilerBase* compiler, bool canAssign);
+  void (*null)(CompilerBase* compiler, bool canAssign);
+  void (*super_)(CompilerBase* compiler, bool canAssign);
+  void (*this_)(CompilerBase* compiler, bool canAssign);
+  void (*field)(CompilerBase* compiler, bool canAssign);
+  void (*staticField)(CompilerBase* compiler, bool canAssign);
+  void (*name)(CompilerBase* compiler, bool canAssign);
+  void (*literal)(CompilerBase* compiler, bool canAssign);
+  void (*stringInterpolation)(CompilerBase* compiler, bool canAssign);
+};
 
 #endif

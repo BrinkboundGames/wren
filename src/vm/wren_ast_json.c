@@ -1,8 +1,8 @@
 
 #include "wren_ast_json.h"
 #include "wren_ast.h"
-#include <json-c/json.h>
-#include <json-c/linkhash.h>
+#include "../json-c/json_object.h"
+#include "../json-c/linkhash.h"
 
 static void prepared_line_file(char* line)
 {

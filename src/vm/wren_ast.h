@@ -63,7 +63,7 @@ typedef struct Expr_t {
                    ExprNode*         values;
                    Token             rightBrace; }    mapExpr;
           struct {
-                   struct infixExpr* condition;
+                   Expr*             condition;
                    Token             question;
                    Expr*             thenBranch;
                    Token             colon;

@@ -4,6 +4,8 @@
 #include "wren.h"
 #include "wren_vm.h"
 
+typedef struct CompilerBase_t CompilerBase;
+
 // The maximum depth that interpolation can nest. For example, this string has
 // three levels:
 //
@@ -260,9 +262,9 @@ typedef enum
   PREC_PRIMARY
 } Precedence;
 
-typedef void (*GrammarFn)(struct CompilerBase* compiler, bool canAssign);
+typedef void (*GrammarFn)(CompilerBase* compiler, bool canAssign);
 
-typedef void (*SignatureFn)(struct CompilerBase* compiler, Signature* signature);
+typedef void (*SignatureFn)(CompilerBase* compiler, Signature* signature);
 
 typedef struct
 {
@@ -274,20 +276,20 @@ typedef struct
 } GrammarRule;
 
 GrammarRule* getRule(TokenType type);
-void parsePrecedence(struct CompilerBase* compiler, Precedence precedence);
+void parsePrecedence(CompilerBase* compiler, Precedence precedence);
 
-bool matchAttribute(struct CompilerBase* compiler);
-void statement(struct CompilerBase* compiler);
-void definition(struct CompilerBase* compiler);
-void expression(struct CompilerBase* compiler);
+bool matchAttribute(CompilerBase* compiler);
+void statement(CompilerBase* compiler);
+void definition(CompilerBase* compiler);
+void expression(CompilerBase* compiler);
 
 Signature signatureFromToken(Parser* parser, SignatureType type);
 void validateNumParameters(Parser* parser, int numArgs);
-int declareVariable(struct CompilerBase* compiler, Token* token);
-int declareNamedVariable(struct CompilerBase* compiler);
-void finishParameterList(struct CompilerBase* compiler, Signature* signature);
-int addLocal(struct CompilerBase* compiler, const char* name, int length);
-bool finishBlock(struct CompilerBase* compiler);
-void finishArgumentList(struct CompilerBase* compiler, int* arity);
+int declareVariable(CompilerBase* compiler, Token* token);
+int declareNamedVariable(CompilerBase* compiler);
+void finishParameterList(CompilerBase* compiler, Signature* signature);
+int addLocal(CompilerBase* compiler, const char* name, int length);
+bool finishBlock(CompilerBase* compiler);
+void finishArgumentList(CompilerBase* compiler, int* arity);
 
 #endif

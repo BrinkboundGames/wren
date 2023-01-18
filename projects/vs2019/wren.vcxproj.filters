@@ -24,9 +24,6 @@
     <ClInclude Include="..\..\src\vm\wren_common.h">
       <Filter>vm</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\src\vm\wren_compiler.h">
-      <Filter>vm</Filter>
-    </ClInclude>
     <ClInclude Include="..\..\src\vm\wren_core.h">
       <Filter>vm</Filter>
     </ClInclude>
@@ -48,6 +45,27 @@
     <ClInclude Include="..\..\src\vm\wren_vm.h">
       <Filter>vm</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\src\vm\wren_ast.h">
+      <Filter>vm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\vm\wren_ast_json.h">
+      <Filter>vm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\vm\wren_compiler_ast.h">
+      <Filter>vm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\vm\wren_compiler_bytecode.h">
+      <Filter>vm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\vm\wren_compiler_ops.h">
+      <Filter>vm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\vm\wren_math.h">
+      <Filter>vm</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\src\vm\wren_parser.h">
+      <Filter>vm</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\..\src\optional\wren_opt_meta.c">
@@ -55,9 +73,6 @@
     </ClCompile>
     <ClCompile Include="..\..\src\optional\wren_opt_random.c">
       <Filter>optional</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\src\vm\wren_compiler.c">
-      <Filter>vm</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\vm\wren_core.c">
       <Filter>vm</Filter>
@@ -75,6 +90,21 @@
       <Filter>vm</Filter>
     </ClCompile>
     <ClCompile Include="..\..\src\vm\wren_vm.c">
+      <Filter>vm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\vm\wren_ast_json.c">
+      <Filter>vm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\vm\wren_compiler_ast.c">
+      <Filter>vm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\vm\wren_compiler_bytecode.c">
+      <Filter>vm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\vm\wren_compiler_ops.c">
+      <Filter>vm</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\src\vm\wren_parser.c">
       <Filter>vm</Filter>
     </ClCompile>
   </ItemGroup>

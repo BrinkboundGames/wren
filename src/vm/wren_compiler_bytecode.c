@@ -848,7 +848,7 @@ static void methodCall(Compiler* compiler, Code instruction,
     // Allow empty an argument list.
     if (peek(compiler->base.parser) != TOKEN_RIGHT_PAREN)
     {
-      finishArgumentList(compiler, &called.arity);
+      finishArgumentList(&compiler->base, &called.arity);
     }
     consume(compiler->base.parser, TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
   }
@@ -1177,7 +1177,7 @@ static void staticField(CompilerBase* compiler, bool canAssign)
   // define it as a variable in the scope surrounding the class definition.
   if (resolveLocal(classCompiler, token->start, token->length) == -1)
   {
-    int symbol = declareVariable(classCompiler, NULL);
+    int symbol = declareVariable(&classCompiler->base, NULL);
 
     // Implicitly initialize it to null.
     emitOp(classCompiler, CODE_NULL);
@@ -1829,7 +1829,7 @@ static void blockStatement(CompilerBase* compiler)
 
   // Block statement.
   pushScope(derived);
-  if (finishBlock(derived))
+  if (finishBlock(compiler))
   {
     // Block was an expression, so discard it.
     emitOp(derived, CODE_POP);
@@ -2533,11 +2533,11 @@ static void emitClassAttributes(Compiler* compiler, ClassInfo* classInfo)
 
   classInfo->classAttributes 
     ? emitAttributes(compiler, classInfo->classAttributes) 
-    : null(compiler, false);
+    : null(&compiler->base, false);
 
   classInfo->methodAttributes 
     ? emitAttributeMethods(compiler, classInfo->methodAttributes) 
-    : null(compiler, false);
+    : null(&compiler->base, false);
 
   callMethod(compiler, 2, "new(_,_)", 8);
 }

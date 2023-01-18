@@ -216,21 +216,21 @@ void wrenGenerateAST(WrenVM* vm, const char* module, const char* source)
 //
 // Returns `true` if it compiled successfully, or `false` if the method couldn't
 // be parsed.
-static Method_t* method(astCompiler* compiler)
+static Method_t* method(CompilerBase* compiler)
 {
   // Parse any attributes before the method and store them
-  while (matchAttribute(&compiler->base)) {};
+  while (matchAttribute(compiler)) {};
 
   // TODO: What about foreign constructors?
-  bool isForeign = match(compiler->base.parser, TOKEN_FOREIGN);
-  bool isStatic = match(compiler->base.parser, TOKEN_STATIC);
+  bool isForeign = match(compiler->parser, TOKEN_FOREIGN);
+  bool isStatic = match(compiler->parser, TOKEN_STATIC);
 
-  SignatureFn signatureFn = getRule(compiler->base.parser->current.type)->method;
-  nextToken(compiler->base.parser);
+  SignatureFn signatureFn = getRule(compiler->parser->current.type)->method;
+  nextToken(compiler->parser);
 
   if (signatureFn == NULL)
   {
-    error(compiler->base.parser, "Expect method definition.");
+    error(compiler->parser, "Expect method definition.");
     return NULL;
   }
 
@@ -239,22 +239,22 @@ static Method_t* method(astCompiler* compiler)
   m->isForeign = isForeign;
   m->isStatic = isStatic;
   m->parameters = NULL;
-  m->name = compiler->base.parser->previous;
+  m->name = compiler->parser->previous;
 
-  int prevNumLocals = compiler->base.numLocals;
+  int prevNumLocals = compiler->numLocals;
 
   // Build the method signature.
-  Signature signature = signatureFromToken(compiler->base.parser, SIG_GETTER);
+  Signature signature = signatureFromToken(compiler->parser, SIG_GETTER);
 
   // Compile the method signature.
-  signatureFn(&compiler->base, &signature);
+  signatureFn(compiler, &signature);
 
-  int currLocalIdx = compiler->base.numLocals - 1;
+  int currLocalIdx = compiler->numLocals - 1;
   while (currLocalIdx >= prevNumLocals)
   {
       TokenNode* node = (TokenNode*)malloc(sizeof(TokenNode));
-      node->val.start = compiler->base.locals[currLocalIdx].name;
-      node->val.length = compiler->base.locals[currLocalIdx].length;
+      node->val.start = compiler->locals[currLocalIdx].name;
+      node->val.length = compiler->locals[currLocalIdx].length;
       node->val.type = TOKEN_NAME;
       node->val.line = 0; // TODO!
 
@@ -266,8 +266,8 @@ static Method_t* method(astCompiler* compiler)
 
   if (!isForeign)
   {
-    consume(compiler->base.parser, TOKEN_LEFT_BRACE, "Expect '{' to begin method body.");
-    finishBlock(&compiler->base);
+    consume(compiler->parser, TOKEN_LEFT_BRACE, "Expect '{' to begin method body.");
+    finishBlock(compiler);
   }
 
   return m;
@@ -577,6 +577,7 @@ static void discardAttributes(CompilerBase* compiler)
 static int defineModuleVariable(CompilerBase* compiler, Token* token)
 {
   // no-op(?)
+  return 0;
 }
 
 static void list(CompilerBase* compiler, bool canAssign)
