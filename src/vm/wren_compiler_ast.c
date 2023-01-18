@@ -85,7 +85,7 @@ static void initCompiler(astCompiler* compiler, Parser* parser, astCompiler* par
   compiler->base.derived = compiler;
   compiler->base.ops = &ops;
   compiler->base.numLocals = 0;
-  compiler->base.scopeDepth = 0;
+  compiler->base.scopeDepth = -1; // the initial scope is module-level.
 
   compiler->parent = parent ? &parent->base : NULL;
   compiler->statements = NULL;
