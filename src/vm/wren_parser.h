@@ -287,9 +287,12 @@ Signature signatureFromToken(Parser* parser, SignatureType type);
 void validateNumParameters(Parser* parser, int numArgs);
 int declareVariable(CompilerBase* compiler, Token* token);
 int declareNamedVariable(CompilerBase* compiler);
-void finishParameterList(CompilerBase* compiler, Signature* signature);
+void finishParameterList(CompilerBase* compiler, int* arity);
 int addLocal(CompilerBase* compiler, const char* name, int length);
 bool finishBlock(CompilerBase* compiler);
 void finishArgumentList(CompilerBase* compiler, int* arity);
+void pushScope(CompilerBase* compiler);
+void popScope(CompilerBase* compiler);
+int resolveLocal(CompilerBase* compiler, const char* name, int length);
 
 #endif

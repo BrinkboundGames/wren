@@ -20,6 +20,7 @@ static void whileStatement(CompilerBase* compiler);
 static void blockStatement(CompilerBase* compiler);
 static void expressionStatement(CompilerBase* compiler);
 static void discardAttributes(CompilerBase* compiler);
+static int discardLocals(CompilerBase* compiler, int depth);
 static int defineModuleVariable(CompilerBase* compiler, Token* token);
 static void list(CompilerBase* compiler, bool canAssign);
 static void subscript(CompilerBase* compiler, bool canAssign);
@@ -58,6 +59,7 @@ static void initCompiler(astCompiler* compiler, Parser* parser, astCompiler* par
     blockStatement,
     expressionStatement,
     discardAttributes,
+    discardLocals,
     defineModuleVariable,
     list,
     subscript,
@@ -248,6 +250,8 @@ static Method_t* method(CompilerBase* compiler)
   // Build the method signature.
   Signature signature = signatureFromToken(compiler->parser, SIG_GETTER);
 
+  pushScope(compiler);
+
   // Compile the method signature.
   signatureFn(compiler, &signature);
 
@@ -271,6 +275,8 @@ static Method_t* method(CompilerBase* compiler)
     consume(compiler->parser, TOKEN_LEFT_BRACE, "Expect '{' to begin method body.");
     finishBlock(compiler);
   }
+
+  popScope(compiler);
 
   return m;
 }
@@ -302,6 +308,11 @@ static void classDefinition(CompilerBase* compiler, bool isForeign)
     stmt->op.classStmt.superclass.type = TOKEN_ERROR;
   }
 
+  // Push a local variable scope. Static fields in a class body are hoisted out
+  // into local variables declared in this scope. Methods that use them will
+  // have upvalues referencing them.
+  pushScope(compiler);
+
   // Compile the method definitions.
   consume(compiler->parser, TOKEN_LEFT_BRACE, "Expect '{' after class declaration.");
   matchLine(compiler->parser);
@@ -328,6 +339,7 @@ static void classDefinition(CompilerBase* compiler, bool isForeign)
   }
 
   pushStmt(compiler, stmt);
+  popScope(compiler);
 }
 
 // Compiles a "var" variable definition statement.
@@ -535,6 +547,7 @@ static void blockStatement(CompilerBase* compiler)
   Stmt* previous = peekStmt(compiler);
 
   // Block statement.
+  pushScope(compiler);
   if (finishBlock(compiler))
   {
     // it was a single expression .. roll it into a ExpressionStatement
@@ -558,6 +571,7 @@ static void blockStatement(CompilerBase* compiler)
       stmt->op.blockStmt.statements = node;
     }
   }
+  popScope(compiler);
 
   pushStmt(compiler, stmt);
 }
@@ -576,6 +590,19 @@ static void expressionStatement(CompilerBase* compiler)
 static void discardAttributes(CompilerBase* compiler)
 {
   // TODO
+}
+
+static int discardLocals(CompilerBase* compiler, int depth)
+{
+  ASSERT(compiler->scopeDepth > -1, "Cannot exit top-level scope.");
+
+  int local = compiler->numLocals - 1;
+  while (local >= 0 && compiler->locals[local].depth >= depth)
+  {
+    local--;
+  }
+
+  return compiler->numLocals - local - 1;
 }
 
 static int defineModuleVariable(CompilerBase* compiler, Token* token)
@@ -770,22 +797,24 @@ static void methodCall(CompilerBase* compiler, Signature* signature)
   // Parse the block argument, if any.
   if (match(compiler->parser, TOKEN_LEFT_BRACE))
   {
+    pushScope(compiler);
+
     // Include the block argument in the arity.
     called.type = SIG_METHOD;
     called.arity++;
 
-    // Make a dummy signature to track the arity.
-    Signature fnSignature = { "", 0, SIG_METHOD, 0 };
-
     // Parse the parameter list, if any.
     if (match(compiler->parser, TOKEN_PIPE))
     {
-      finishParameterList(compiler, &fnSignature);
+      int arity = 0;
+      finishParameterList(compiler, &arity);
       consume(compiler->parser, TOKEN_PIPE, "Expect '|' after function parameters.");
     }
 
     bool isExpressionBody = finishBlock(compiler);
     // TODO: push blockArgument!
+
+    popScope(compiler);
   }
 
   // TODO: Allow Grace-style mixfix methods?

@@ -847,7 +847,7 @@ static void parameterList(CompilerBase* compiler, Signature* signature)
   // Allow an empty parameter list.
   if (match(compiler->parser, TOKEN_RIGHT_PAREN)) return;
 
-  finishParameterList(compiler, signature);
+  finishParameterList(compiler, &signature->arity);
   consume(compiler->parser, TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
 }
 
@@ -880,7 +880,7 @@ static void constructorSignature(CompilerBase* compiler, Signature* signature)
   // Allow an empty parameter list.
   if (match(compiler->parser, TOKEN_RIGHT_PAREN)) return;
 
-  finishParameterList(compiler, signature);
+  finishParameterList(compiler, &signature->arity);
   consume(compiler->parser, TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
 }
 
@@ -926,7 +926,7 @@ static void subscriptSignature(CompilerBase* compiler, Signature* signature)
   signature->length = 0;
 
   // Parse the parameters inside the subscript.
-  finishParameterList(compiler, signature);
+  finishParameterList(compiler, &signature->arity);
   consume(compiler->parser, TOKEN_RIGHT_BRACKET, "Expect ']' after parameters.");
 
   maybeSetter(compiler, signature);
@@ -1337,13 +1337,13 @@ int declareNamedVariable(CompilerBase* compiler)
 }
 
 // Parses the rest of a comma-separated parameter list after the opening
-// delimeter. Updates `arity` in [signature] with the number of parameters.
-void finishParameterList(CompilerBase* compiler, Signature* signature)
+// delimeter. Updates [arity] with the number of parameters.
+void finishParameterList(CompilerBase* compiler, int* arity)
 {
   do
   {
     ignoreNewlines(compiler->parser);
-    validateNumParameters(compiler->parser, ++signature->arity);
+    validateNumParameters(compiler->parser, ++*arity);
 
     // Define a local variable in the method for the parameter.
     declareNamedVariable(compiler);
@@ -1410,4 +1410,39 @@ void finishArgumentList(CompilerBase* compiler, int* arity)
 
   // Allow a newline before the closing delimiter.
   ignoreNewlines(compiler->parser);
+}
+
+// Starts a new local block scope.
+void pushScope(CompilerBase* compiler)
+{
+  compiler->scopeDepth++;
+}
+
+// Closes the last pushed block scope and discards any local variables declared
+// in that scope. This should only be called in a statement context where no
+// temporaries are still on the stack.
+void popScope(CompilerBase* compiler)
+{
+  int popped = compiler->ops->discardLocals(compiler, compiler->scopeDepth);
+  compiler->numLocals -= popped;
+  compiler->numSlots -= popped;
+  compiler->scopeDepth--;
+}
+
+// Attempts to look up the name in the local variables of [compiler]. If found,
+// returns its index, otherwise returns -1.
+int resolveLocal(CompilerBase* compiler, const char* name, int length)
+{
+  // Look it up in the local scopes. Look in reverse order so that the most
+  // nested variable is found first and shadows outer ones.
+  for (int i = compiler->numLocals - 1; i >= 0; i--)
+  {
+    if (compiler->locals[i].length == length &&
+        memcmp(name, compiler->locals[i].name, length) == 0)
+    {
+      return i;
+    }
+  }
+
+  return -1;
 }

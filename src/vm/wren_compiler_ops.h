@@ -42,10 +42,26 @@ typedef struct CompilerBase_t
   void* derived;
   const struct CompilerOps* ops;
 
+  // The compiler for the function enclosing this one, or NULL if it's the
+  // top level.
+  CompilerBase* parent;
+
   // The current level of block scope nesting, where zero is no nesting. A -1
   // here means top-level code is being compiled and there is no block scope
   // in effect at all. Any variables declared will be module-level.
   int scopeDepth;
+
+  // The current number of slots (locals and temporaries) in use.
+  //
+  // We use this and maxSlots to track the maximum number of additional slots
+  // a function may need while executing. When the function is called, the
+  // fiber will check to ensure its stack has enough room to cover that worst
+  // case and grow the stack if needed.
+  //
+  // This value here doesn't include parameters to the function. Since those
+  // are already pushed onto the stack by the caller and tracked there, we
+  // don't need to double count them here.
+  int numSlots;
 
   // The number of local variables currently in scope.
   int numLocals;
@@ -70,6 +86,7 @@ struct CompilerOps
   void (*expressionStatement)(CompilerBase* compiler);
 
   void (*discardAttributes)(CompilerBase* compiler);
+  int (*discardLocals)(CompilerBase* compiler, int depth);
   int (*defineModuleVariable)(CompilerBase* compiler, Token* token);
 
   void (*list)(CompilerBase* compiler, bool canAssign);

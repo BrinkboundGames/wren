@@ -26,7 +26,7 @@
 // instruction pointer.
 #define MAX_JUMP (1 << 16)
 
-#define GET_PARENT(compiler) ((Compiler*)(compiler->parent ? compiler->parent->derived : NULL))
+#define GET_PARENT(compiler) ((Compiler*)(compiler->base.parent ? compiler->base.parent->derived : NULL))
 
 typedef struct
 {
@@ -92,25 +92,9 @@ struct sCompiler
 {
   CompilerBase base;
 
-  // The compiler for the function enclosing this one, or NULL if it's the
-  // top level.
-  CompilerBase* parent;
-
   // The upvalues that this function has captured from outer scopes. The count
   // of them is stored in [numUpvalues].
   CompilerUpvalue upvalues[MAX_UPVALUES];
-
-  // The current number of slots (locals and temporaries) in use.
-  //
-  // We use this and maxSlots to track the maximum number of additional slots
-  // a function may need while executing. When the function is called, the
-  // fiber will check to ensure its stack has enough room to cover that worst
-  // case and grow the stack if needed.
-  //
-  // This value here doesn't include parameters to the function. Since those
-  // are already pushed onto the stack by the caller and tracked there, we
-  // don't need to double count them here.
-  int numSlots;
 
   // The current innermost loop being compiled, or NULL if not in a loop.
   Loop* loop;
@@ -172,6 +156,7 @@ static void whileStatement(CompilerBase* compiler);
 static void blockStatement(CompilerBase* compiler);
 static void expressionStatement(CompilerBase* compiler);
 static void discardAttributes(CompilerBase* compiler);
+static int discardLocals(CompilerBase* compiler, int depth);
 static int defineModuleVariable(CompilerBase* compiler, Token* token);
 static void list(CompilerBase* compiler, bool canAssign);
 static void subscript(CompilerBase* compiler, bool canAssign);
@@ -260,6 +245,7 @@ static void initCompiler(Compiler* compiler, Parser* parser, ObjModule* module, 
     blockStatement,
     expressionStatement,
     discardAttributes,
+    discardLocals,
     defineModuleVariable,
     list,
     subscript,
@@ -284,8 +270,8 @@ static void initCompiler(Compiler* compiler, Parser* parser, ObjModule* module, 
   compiler->base.parser = parser;
   compiler->base.derived = compiler;
   compiler->base.ops = &ops;
+  compiler->base.parent = parent ? &parent->base : NULL;
 
-  compiler->parent = parent ? &parent->base : NULL;
   compiler->module = module;
   compiler->loop = NULL;
   compiler->enclosingClass = NULL;
@@ -307,7 +293,7 @@ static void initCompiler(Compiler* compiler, Parser* parser, ObjModule* module, 
   // the parent chain to find a method enclosing the function whose "this" we
   // can close over.
   compiler->base.numLocals = 1;
-  compiler->numSlots = compiler->base.numLocals;
+  compiler->base.numSlots = compiler->base.numLocals;
 
   if (isMethod)
   {
@@ -359,10 +345,10 @@ static void emitOp(Compiler* compiler, Code instruction)
   emitByte(compiler, instruction);
   
   // Keep track of the stack's high water mark.
-  compiler->numSlots += stackEffects[instruction];
-  if (compiler->numSlots > compiler->fn->maxSlots)
+  compiler->base.numSlots += stackEffects[instruction];
+  if (compiler->base.numSlots > compiler->fn->maxSlots)
   {
-    compiler->fn->maxSlots = compiler->numSlots;
+    compiler->fn->maxSlots = compiler->base.numSlots;
   }
 }
 
@@ -449,12 +435,6 @@ static void defineVariable(Compiler* compiler, int symbol)
   emitOp(compiler, CODE_POP);
 }
 
-// Starts a new local block scope.
-static void pushScope(Compiler* compiler)
-{
-  compiler->base.scopeDepth++;
-}
-
 // Generates code to discard local variables at [depth] or greater. Does *not*
 // actually undeclare variables or pop any scopes, though. This is called
 // directly when compiling "break" statements to ditch the local variables
@@ -462,60 +442,31 @@ static void pushScope(Compiler* compiler)
 // the break instruction.
 //
 // Returns the number of local variables that were eliminated.
-static int discardLocals(Compiler* compiler, int depth)
+static int discardLocals(CompilerBase* compiler, int depth)
 {
-  ASSERT(compiler->base.scopeDepth > -1, "Cannot exit top-level scope.");
+  ASSERT(compiler->scopeDepth > -1, "Cannot exit top-level scope.");
 
-  int local = compiler->base.numLocals - 1;
-  while (local >= 0 && compiler->base.locals[local].depth >= depth)
+  Compiler* derived = compiler->derived;
+  int local = compiler->numLocals - 1;
+  while (local >= 0 && compiler->locals[local].depth >= depth)
   {
     // If the local was closed over, make sure the upvalue gets closed when it
     // goes out of scope on the stack. We use emitByte() and not emitOp() here
     // because we don't want to track that stack effect of these pops since the
     // variables are still in scope after the break.
-    if (compiler->base.locals[local].isUpvalue)
+    if (compiler->locals[local].isUpvalue)
     {
-      emitByte(compiler, CODE_CLOSE_UPVALUE);
+      emitByte(derived, CODE_CLOSE_UPVALUE);
     }
     else
     {
-      emitByte(compiler, CODE_POP);
+      emitByte(derived, CODE_POP);
     }
-    
 
     local--;
   }
 
-  return compiler->base.numLocals - local - 1;
-}
-
-// Closes the last pushed block scope and discards any local variables declared
-// in that scope. This should only be called in a statement context where no
-// temporaries are still on the stack.
-static void popScope(Compiler* compiler)
-{
-  int popped = discardLocals(compiler, compiler->base.scopeDepth);
-  compiler->base.numLocals -= popped;
-  compiler->numSlots -= popped;
-  compiler->base.scopeDepth--;
-}
-
-// Attempts to look up the name in the local variables of [compiler]. If found,
-// returns its index, otherwise returns -1.
-static int resolveLocal(Compiler* compiler, const char* name, int length)
-{
-  // Look it up in the local scopes. Look in reverse order so that the most
-  // nested variable is found first and shadows outer ones.
-  for (int i = compiler->base.numLocals - 1; i >= 0; i--)
-  {
-    if (compiler->base.locals[i].length == length &&
-        memcmp(name, compiler->base.locals[i].name, length) == 0)
-    {
-      return i;
-    }
-  }
-
-  return -1;
+  return compiler->numLocals - local - 1;
 }
 
 // Adds an upvalue to [compiler]'s function with the given properties. Does not
@@ -550,14 +501,14 @@ static int addUpvalue(Compiler* compiler, bool isLocal, int index)
 static int findUpvalue(Compiler* compiler, const char* name, int length)
 {
   // If we are at the top level, we didn't find it.
-  if (compiler->parent == NULL) return -1;
+  if (compiler->base.parent == NULL) return -1;
 
   // If we hit the method boundary (and the name isn't a static field), then
   // stop looking for it. We'll instead treat it as a self send.
   if (name[0] != '_' && GET_PARENT(compiler)->enclosingClass != NULL) return -1;
 
   // See if it's a local variable in the immediately enclosing function.
-  int local = resolveLocal(GET_PARENT(compiler), name, length);
+  int local = resolveLocal(&GET_PARENT(compiler)->base, name, length);
   if (local != -1)
   {
     // Mark the local as an upvalue so we know to close it when it goes out of
@@ -594,7 +545,7 @@ static Variable resolveNonmodule(Compiler* compiler,
   // Look it up in the local scopes.
   Variable variable;
   variable.scope = SCOPE_LOCAL;
-  variable.index = resolveLocal(compiler, name, length);
+  variable.index = resolveLocal(&compiler->base, name, length);
   if (variable.index != -1) return variable;
 
   // It's not a local, so guess that it's an upvalue.
@@ -649,7 +600,7 @@ static ObjFn* endCompiler(Compiler* compiler,
                        debugName, debugNameLength);
   
   // In the function that contains this one, load the resulting function object.
-  if (compiler->parent != NULL)
+  if (compiler->base.parent != NULL)
   {
     int constant = addConstant(GET_PARENT(compiler), OBJ_VAL(compiler->fn));
 
@@ -863,17 +814,17 @@ static void methodCall(Compiler* compiler, Code instruction,
     Compiler fnCompiler;
     initCompiler(&fnCompiler, compiler->base.parser, compiler->module, compiler, false);
 
-    // Make a dummy signature to track the arity.
-    Signature fnSignature = { "", 0, SIG_METHOD, 0 };
+    // Track the arity.
+    int arity = 0;
 
     // Parse the parameter list, if any.
     if (match(compiler->base.parser, TOKEN_PIPE))
     {
-      finishParameterList(&fnCompiler.base, &fnSignature);
+      finishParameterList(&fnCompiler.base, &arity);
       consume(compiler->base.parser, TOKEN_PIPE, "Expect '|' after function parameters.");
     }
 
-    fnCompiler.fn->arity = fnSignature.arity;
+    fnCompiler.fn->arity = arity;
 
     finishBody(&fnCompiler);
 
@@ -1175,7 +1126,7 @@ static void staticField(CompilerBase* compiler, bool canAssign)
 
   // If this is the first time we've seen this static field, implicitly
   // define it as a variable in the scope surrounding the class definition.
-  if (resolveLocal(classCompiler, token->start, token->length) == -1)
+  if (resolveLocal(&classCompiler->base, token->start, token->length) == -1)
   {
     int symbol = declareVariable(&classCompiler->base, NULL);
 
@@ -1619,7 +1570,7 @@ static void breakStatement(CompilerBase* compiler)
 
   // Since we will be jumping out of the scope, make sure any locals in it
   // are discarded first.
-  discardLocals(derived, derived->loop->scopeDepth + 1);
+  discardLocals(compiler, derived->loop->scopeDepth + 1);
 
   // Emit a placeholder instruction for the jump to the end of the body. When
   // we're done compiling the loop body and know where the end is, we'll
@@ -1641,7 +1592,7 @@ static void continueStatement(CompilerBase* compiler)
 
   // Since we will be jumping out of the scope, make sure any locals in it
   // are discarded first.
-  discardLocals(derived, derived->loop->scopeDepth + 1);
+  discardLocals(compiler, derived->loop->scopeDepth + 1);
 
   // emit a jump back to the top of the loop
   int loopOffset = derived->fn->code.count - derived->loop->start + 2;
@@ -1703,10 +1654,8 @@ static void forStatement(CompilerBase* compiler)
   // - The .iteratorValue() method is used to get the value at the current
   //   iterator position.
 
-  Compiler* derived = compiler->derived;
-
   // Create a scope for the hidden local variables used for the iterator.
-  pushScope(derived);
+  pushScope(compiler);
 
   consume(compiler->parser, TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
   consume(compiler->parser, TOKEN_NAME, "Expect for loop variable name.");
@@ -1740,6 +1689,8 @@ static void forStatement(CompilerBase* compiler)
 
   consume(compiler->parser, TOKEN_RIGHT_PAREN, "Expect ')' after loop expression.");
 
+  Compiler* derived = compiler->derived;
+
   Loop loop;
   startLoop(derived, &loop);
 
@@ -1759,18 +1710,18 @@ static void forStatement(CompilerBase* compiler)
 
   // Bind the loop variable in its own scope. This ensures we get a fresh
   // variable each iteration so that closures for it don't all see the same one.
-  pushScope(derived);
+  pushScope(compiler);
   addLocal(compiler, name, length);
 
   loopBody(derived);
 
   // Loop variable.
-  popScope(derived);
+  popScope(compiler);
 
   endLoop(derived);
 
   // Hidden variables.
-  popScope(derived);
+  popScope(compiler);
 }
 
 static void ifStatement(CompilerBase* compiler)
@@ -1828,13 +1779,13 @@ static void blockStatement(CompilerBase* compiler)
   Compiler* derived = compiler->derived;
 
   // Block statement.
-  pushScope(derived);
+  pushScope(compiler);
   if (finishBlock(compiler))
   {
     // Block was an expression, so discard it.
     emitOp(derived, CODE_POP);
   }
-  popScope(derived);
+  popScope(compiler);
 }
 
 static void expressionStatement(CompilerBase* compiler)
@@ -2062,7 +2013,7 @@ static void classDefinition(CompilerBase* compiler, bool isForeign)
   // Push a local variable scope. Static fields in a class body are hoisted out
   // into local variables declared in this scope. Methods that use them will
   // have upvalues referencing them.
-  pushScope(derived);
+  pushScope(compiler);
 
   ClassInfo classInfo;
   classInfo.isForeign = isForeign;
@@ -2128,7 +2079,7 @@ static void classDefinition(CompilerBase* compiler, bool isForeign)
   wrenIntBufferClear(compiler->parser->vm, &classInfo.methods);
   wrenIntBufferClear(compiler->parser->vm, &classInfo.staticMethods);
   derived->enclosingClass = NULL;
-  popScope(derived);
+  popScope(compiler);
 }
 
 // Compiles an "import" statement.
