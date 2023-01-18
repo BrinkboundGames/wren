@@ -21,7 +21,8 @@ static WrenVM* initVM(bool isAPITest)
   config.writeFn = vm_write;
   config.errorFn = reportError;
 
-  if(isAPITest) {
+  if (isAPITest)
+  {
     config.bindForeignClassFn = APITest_bindForeignClass;
     config.bindForeignMethodFn = APITest_bindForeignMethod;
   }
@@ -31,19 +32,30 @@ static WrenVM* initVM(bool isAPITest)
   return wrenNewVM(&config);
 }
 
-int main(int argc, const char* argv[]) {
-
+int main(int argc, const char* argv[])
+{
   int handled = handle_args(argc, argv);
-  if(handled != 0) return handled;
+  if (handled != 0) return handled;
 
   int exitCode = 0;
   const char* testName = argv[1];
+  const char* output = argc == 4 ? argv[3] : NULL;
   bool isAPITest = isModuleAnAPITest(testName);
 
   vm = initVM(isAPITest);
-  WrenInterpretResult result = runFile(vm, testName);
+  WrenInterpretResult result = WREN_RESULT_SUCCESS;
+  if (output)
+  {
+    // gen the AST
+    genAST(vm, testName, output);
+  }
+  else
+  {
+    result = runFile(vm, testName);
+  }
 
-  if(isAPITest) {
+  if (isAPITest)
+  {
     exitCode = APITest_Run(vm, testName);
   }
 
@@ -53,6 +65,4 @@ int main(int argc, const char* argv[]) {
   wrenFreeVM(vm);
 
   return exitCode;
-
 }
-

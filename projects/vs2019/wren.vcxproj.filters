@@ -108,4 +108,7 @@
       <Filter>vm</Filter>
     </ClCompile>
   </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\..\src\lib\json-c\x64\json-c.lib" />
+  </ItemGroup>
 </Project>

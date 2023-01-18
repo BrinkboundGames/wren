@@ -219,6 +219,9 @@
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /y $(SolutionDir)..\..\src\lib\json-c\x64\json-c.dll $(ProjectDir)..\..\bin</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug 32bit|Win32'">
     <ClCompile>
@@ -282,6 +285,9 @@
     <ClCompile Include="..\..\src\vm\wren_utils.c" />
     <ClCompile Include="..\..\src\vm\wren_value.c" />
     <ClCompile Include="..\..\src\vm\wren_vm.c" />
+  </ItemGroup>
+  <ItemGroup>
+    <Library Include="..\..\src\lib\json-c\x64\json-c.lib" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

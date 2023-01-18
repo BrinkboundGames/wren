@@ -162,7 +162,7 @@ Expr* peekExpr(CompilerBase* compiler)
   return derived->semanticStack ? derived->semanticStack->val : NULL;
 }
 
-void wrenGenerateAST(WrenVM* vm, const char* module, const char* source)
+void wrenGenerateAST(WrenVM* vm, const char* module, const char* source, const char* output)
 {
   // Skip the UTF-8 BOM if there is one.
   if (strncmp(source, "\xEF\xBB\xBF", 3) == 0) source += 3;
@@ -209,7 +209,7 @@ void wrenGenerateAST(WrenVM* vm, const char* module, const char* source)
     }
   }
 
-  printAstStatementsToJSON(&compiler);
+  printAstStatementsToJSON(&compiler, output);
 }
 
 // Compiles a method definition inside a class body.

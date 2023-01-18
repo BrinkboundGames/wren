@@ -389,10 +389,9 @@
     char* source = readFile(filePath->chars);
     pathFree(filePath);
 
-      result.source = source;
-      result.onComplete = readModuleComplete;
+    result.source = source;
+    result.onComplete = readModuleComplete;
     return result;
-
   }
 
   // Applies the CLI's import resolution policy. The rules are:
@@ -430,6 +429,35 @@
     return false;
   }
 
+  void genAST(WrenVM* vm, const char* path, const char* output)
+  {
+    char* source = readFile(path);
+    if (source == NULL)
+    {
+      fprintf(stderr, "Could not find file \"%s\".\n", path);
+      exit(WREN_EX_NOINPUT);
+    }
+
+    // If it looks like a relative path, make it explicitly relative so that we
+    // can distinguish it from logical paths.
+    Path* module = pathNew(path);
+    if (pathType(module->chars) == PATH_TYPE_SIMPLE)
+    {
+      Path* relative = pathNew(".");
+      pathJoin(relative, path);
+
+      pathFree(module);
+      module = relative;
+    }
+
+    pathRemoveExtension(module);
+
+    wrenGenerateAST(vm, module->chars, source, output);
+
+    pathFree(module);
+    free(source);
+  }
+
   WrenInterpretResult runFile(WrenVM* vm, const char* path)
   {
     char* source = readFile(path);
@@ -461,12 +489,25 @@
     return result;
   }
 
+  static int endsWith(const char* str, const char* suffix)
+  {
+    if (!str || !suffix)
+      return 0;
+    size_t lenstr = strlen(str);
+    size_t lensuffix = strlen(suffix);
+    if (lensuffix > lenstr)
+      return 0;
+    return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
+  }
+
   int handle_args(int argc, const char* argv[]) 
   {
-
     if (argc < 2)
     {
-      printf("This is a Wren test runner.\nUsage: wren_test [file]\n");
+      printf("This is a Wren test runner.\nUsage:\
+      \n  wren_test [file] -ast [output file]\nArgs:\
+      \n  [file] = wren file to compile\
+      \n  -ast [output file] = generate a json file conataining the AST.");
       return WREN_EX_USAGE;
     }
 
@@ -474,6 +515,15 @@
     {
       printf("wren_test is running on Wren version %s\n", WREN_VERSION_STRING);
       return 1;
+    }
+
+    if (argc == 4 && strcmp(argv[2], "-ast") == 0)
+    {
+        if (endsWith(argv[3], ".json") == 0)
+        {
+            printf("[output file] must have *.json extension\n");
+            return WREN_EX_USAGE;
+        }
     }
 
     return 0;

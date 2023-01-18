@@ -1,13 +1,12 @@
 
 #include "wren_ast_json.h"
 #include "wren_ast.h"
-#include "../json-c/json_object.h"
-#include "../json-c/linkhash.h"
+#include "json-c/json.h"
 
-static void prepared_line_file(char* line)
+static void prepared_line_file(const char* line, const char* output)
 {
   FILE* fptr;
-  fptr = fopen("C:/Users/Bunjamin10/Desktop/sample.json", "a");
+  fptr = fopen(output, "a");
   fwrite(line, sizeof(char), strlen(line), fptr);
 
   // The file should be closed when everything is written
@@ -49,11 +48,17 @@ json_object* importStmtToJsonObject(Stmt* stmt)
     curr = curr->next;
   }
 
-  char* key = malloc(stmt->op.importStmt.path.length + 1);
-  strncpy(key, stmt->op.importStmt.path.start, stmt->op.importStmt.path.length);
-  json_object* import = json_object_new_object();
-  json_object_object_add(import, key, body);
-  free(key);
+  json_object* import = NULL;
+
+  int len = stmt->op.importStmt.path.length + 1;
+  char* key = malloc(len);
+  if (key)
+  {
+    strncpy(key, stmt->op.importStmt.path.start, stmt->op.importStmt.path.length);
+    import = json_object_new_object();
+    json_object_object_add(import, key, body);
+    free(key);
+  }
 
   return import;
 }
@@ -92,7 +97,7 @@ json_object* stmtToJsonObject(Stmt* stmt)
   return obj;
 }
 
-void printAstStatementsToJSON(astCompiler* compiler)
+void printAstStatementsToJSON(astCompiler* compiler, const char* output)
 {
   json_object * root = json_object_new_object();
   json_object* imports = json_object_new_object();
@@ -115,8 +120,8 @@ void printAstStatementsToJSON(astCompiler* compiler)
   json_object_object_add(root, "imports", imports);
 
   // Transforms the binary representation into a string representation
-  char* serialized_json = json_object_to_json_string(root);
+  const char* serialized_json = json_object_to_json_string(root);
 
-  // print to a file
-  prepared_line_file(serialized_json);
+  // print to the "output" file
+  prepared_line_file(serialized_json, output);
 }
