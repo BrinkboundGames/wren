@@ -292,12 +292,14 @@ static void classDefinition(CompilerBase* compiler, bool isForeign)
   // Load the superclass (if there is one).
   if (match(compiler->parser, TOKEN_IS))
   {
-    parsePrecedence(compiler, PREC_CALL);
-    stmt->op.classStmt.superclass = popExpr(compiler);
+    // TODO: bytecode compiler parses an expression ..
+    // do we need to here, as well?
+    consume(compiler->parser, TOKEN_NAME, "Expect name for the superclass.");
+    stmt->op.classStmt.superclass = compiler->parser->previous;
   }
   else
   {
-    stmt->op.classStmt.superclass = NULL;
+    stmt->op.classStmt.superclass.type = TOKEN_ERROR;
   }
 
   // Compile the method definitions.

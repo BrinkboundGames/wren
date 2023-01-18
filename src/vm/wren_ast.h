@@ -123,7 +123,7 @@ typedef struct Stmt_t {
           struct {
                    bool              foreign;
                    Token             name;
-                   Expr*             superclass;
+                   Token             superclass;
                    MethodNode*       methods; }       classStmt;
           struct {
                    Expr*             expression; }    exprStmt;
