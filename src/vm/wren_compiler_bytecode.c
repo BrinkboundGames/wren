@@ -209,14 +209,14 @@ static const int stackEffects[] = {
 static int addConstant(Compiler* compiler, Value constant)
 {
   if (compiler->base.parser->hasError) return -1;
-  
+
   // See if we already have a constant for the value. If so, reuse it.
   if (compiler->constants != NULL)
   {
     Value existing = wrenMapGet(compiler->constants, constant);
     if (IS_NUM(existing)) return (int)AS_NUM(existing);
   }
-  
+
   // It's a new constant.
   if (compiler->fn->constants.count < MAX_CONSTANTS)
   {
@@ -224,7 +224,7 @@ static int addConstant(Compiler* compiler, Value constant)
     wrenValueBufferWrite(compiler->base.parser->vm, &compiler->fn->constants,
                          constant);
     if (IS_OBJ(constant)) wrenPopRoot(compiler->base.parser->vm);
-    
+
     if (compiler->constants == NULL)
     {
       compiler->constants = wrenNewMap(compiler->base.parser->vm);

@@ -98,6 +98,7 @@ Stmt* allocateNewStmt(CompilerBase* compiler)
   StmtNode* node = (StmtNode*)malloc(sizeof(StmtNode));
   node->next = derived->statements;
   node->val = (Stmt*)malloc(sizeof(Stmt));
+  derived->statements = node;
   return node->val;
 }
 
@@ -133,6 +134,7 @@ Expr* allocateNewExpr(CompilerBase* compiler)
   ExprNode* node = (ExprNode*)malloc(sizeof(ExprNode));
   node->next = derived->expressions;
   node->val = (Expr*)malloc(sizeof(Expr));
+  derived->expressions = node;
   return node->val;
 }
 
@@ -490,7 +492,7 @@ static void returnStatement(CompilerBase* compiler)
   stmt->op.returnStmt.keyword = compiler->parser->previous;
 
   // Compile the return value.
-  if (peek(compiler->parser) != TOKEN_LINE)
+  if (peek(compiler->parser) == TOKEN_LINE)
   {
     // If there's no expression after return, initializers should 
     // return 'this' and regular methods should return null
@@ -587,6 +589,7 @@ static void list(CompilerBase* compiler, bool canAssign)
   expr->op.listExpr.leftBracket = compiler->parser->previous;
 
   // Compile the list elements.
+  int count = 0;
   do
   {
     ignoreNewlines(compiler->parser);
@@ -596,9 +599,10 @@ static void list(CompilerBase* compiler, bool canAssign)
 
     // The element.
     expression(compiler);
+    count++;
   } while (match(compiler->parser, TOKEN_COMMA));
 
-  while (peekExpr(compiler))
+  for (int i = 0; i < count; i++)
   {
     ExprNode* node = (ExprNode*)malloc(sizeof(ExprNode));
     node->val = popExpr(compiler);
@@ -724,12 +728,12 @@ static void map(CompilerBase* compiler, bool canAssign)
   pushExpr(compiler, expr);
 }
 
-// Compiles an (optional) argument list for a method call with [signature]
-// and then calls it.
+// Compiles an (optional) argument list for a method call with [signature].
 static void methodCall(CompilerBase* compiler, Signature* signature)
 {
   Expr* expr = popExpr(compiler);
-  ASSERT(expr->tag == CallExpr, "Expected a CallExpr on the semanticStack!");
+  ASSERT(expr->tag == CallExpr || expr->tag == SuperExpr,
+      "Expected a CallExpr or SuperExpr on the semanticStack!");
 
   // Make a new signature that contains the updated arity and type based on
   // the arguments we find.
@@ -750,13 +754,14 @@ static void methodCall(CompilerBase* compiler, Signature* signature)
     }
     consume(compiler->parser, TOKEN_RIGHT_PAREN, "Expect ')' after arguments.");
 
-    // pop and push onto CallExpr
+    // pop and push onto Expr "arguments"
+    ExprNode** arguments = expr->tag == CallExpr ? &expr->op.callExpr.arguments : &expr->op.superExpr.arguments;
     for (int i = 0; i < called.arity; i++)
     {
       ExprNode* exprNode = (ExprNode*)malloc(sizeof(ExprNode));
-      exprNode->next = expr->op.callExpr.arguments;
+      exprNode->next = *arguments;
       exprNode->val = popExpr(compiler);
-      expr->op.callExpr.arguments = exprNode;
+      *arguments = exprNode;
     }
   }
 
@@ -811,6 +816,8 @@ static void namedCall(CompilerBase* compiler, bool canAssign)
 
     // Compile the assigned value.
     expression(compiler);
+
+    // TODO: need to push assignmentexpr?
   }
   else
   {
@@ -927,10 +934,27 @@ static void super_(CompilerBase* compiler, bool canAssign)
 {
   Expr* expr = allocateNewExpr(compiler);
   expr->tag = SuperExpr;
-
-  // TODO: fill out the missing variables!
-
+  expr->op.superExpr.name = compiler->parser->previous;
+  expr->op.superExpr.arguments = NULL;
+  expr->op.superExpr.blockArgument = NULL;
   pushExpr(compiler, expr);
+
+  // See if it's a named super call, or an unnamed one.
+  if (match(compiler->parser, TOKEN_DOT))
+  {
+    // Compile the superclass call.
+    consume(compiler->parser, TOKEN_NAME, "Expect method name after 'super.'.");
+    namedCall(compiler, canAssign);
+  }
+  else
+  {
+    // No explicit name, so assume the enclosing method.
+    // TODO: report error if assumption is NOT correct?
+
+    // Make a dummy signature to track the arity.
+    Signature signature = { "", 0, SIG_METHOD, 0 };
+    methodCall(compiler, &signature);
+  }
 }
 
 static void this_(CompilerBase* compiler, bool canAssign)
@@ -963,10 +987,12 @@ static void staticField(CompilerBase* compiler, bool canAssign)
 static void name(CompilerBase* compiler, bool canAssign)
 {
   Expr* expr = allocateNewExpr(compiler);
-  expr->tag = VarExpr;
-  expr->op.tokenExpr = compiler->parser->previous;
+  expr->tag = CallExpr;
+  expr->op.callExpr.name = compiler->parser->previous;
+  expr->op.callExpr.receiver = NULL; // implicit receiver
   pushExpr(compiler, expr);
-  bareName(compiler, canAssign); // check for assignment
+
+  namedCall(compiler, canAssign); // check for assignment / methodCall
 }
 
 static void literal(CompilerBase* compiler, bool canAssign)
@@ -1007,6 +1033,7 @@ static void stringInterpolation(CompilerBase* compiler, bool canAssign)
   expr->op.interpolationExpr.strings = NULL;
   expr->op.interpolationExpr.expressions = NULL;
 
+  int count = 0;
   do
   {
     // The opening string part.
@@ -1017,6 +1044,7 @@ static void stringInterpolation(CompilerBase* compiler, bool canAssign)
     expression(compiler);
 
     ignoreNewlines(compiler->parser);
+    count++;
   } while (match(compiler->parser, TOKEN_INTERPOLATION));
 
   // The trailing string part.
@@ -1027,9 +1055,10 @@ static void stringInterpolation(CompilerBase* compiler, bool canAssign)
   ExprNode* node = (ExprNode*)malloc(sizeof(ExprNode));
   node->next = expr->op.interpolationExpr.strings;
   node->val = popExpr(compiler);
+  expr->op.interpolationExpr.strings = node;
 
   // push pairwise
-  while (peekExpr(compiler))
+  for (int i = 0; i < count; i++)
   {
     ExprNode* exprNode = (ExprNode*)malloc(sizeof(ExprNode));
     exprNode->next = expr->op.interpolationExpr.expressions;

@@ -33,7 +33,7 @@ typedef struct Expr_t {
          PrefixExpr, GroupingExpr, AssignmentExpr,
          InfixExpr, MapExpr, ConditionalExpr,
          NumExpr, SuperExpr, StringExpr,
-         SubscriptExpr, BoolExpr, InterpolationExpr }    tag;
+         SubscriptExpr, BoolExpr, InterpolationExpr } tag;
   union { Token                                       tokenExpr;
           struct { Token             leftBracket;
                    Token             rightBracket;
@@ -70,7 +70,7 @@ typedef struct Expr_t {
                    Expr*             elseBranch; }    conditionalExpr;
           struct {
                    Token             name;
-                   ExprNode*         args;
+                   ExprNode*         arguments;
                    Body*             blockArgument; } superExpr;
           struct {
                    Expr*             receiver;
