@@ -1,6 +1,10 @@
 #ifndef wren_common_h
 #define wren_common_h
 
+// Brinkbound (not defined in Unreal ... default to C++14)
+#define __STDC_VERSION__ 201402L
+// END Brinkbound
+
 // This header contains macros and defines used across the entire Wren
 // implementation. In particular, it contains "configuration" defines that
 // control how Wren works. Some of these are only used while hacking on Wren

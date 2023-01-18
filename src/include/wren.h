@@ -25,7 +25,15 @@
   #else
     #define WREN_API
   #endif
+// Brinkbound
+// (note: Unreal sets WREN_API=DLLEXPORT, but DLLEXPORT is not yet defined at compile time)
+// (force in "__declspec(dllexport)" in place of DLLEXPORT)
+#elif defined(_MSC_VER)
+  #undef WREN_API
+  #define WREN_API __declspec(dllexport)
+// END Brinkbound
 #endif //WREN_API
+
 
 // A single virtual machine for executing Wren code.
 //
@@ -323,6 +331,9 @@ WREN_API void wrenCollectGarbage(WrenVM* vm);
 // context of resolved [module].
 WREN_API WrenInterpretResult wrenInterpret(WrenVM* vm, const char* module,
                                   const char* source);
+
+// Compiles [source], a string of Wren source code, into an abstract syntax tree (AST)
+WREN_API void wrenGenerateAST(WrenVM* vm, const char* module, const char* source);
 
 // Creates a handle that can be used to invoke a method with [signature] on
 // using a receiver and arguments that are set up on the stack.

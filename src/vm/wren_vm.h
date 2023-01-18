@@ -2,7 +2,7 @@
 #define wren_vm_h
 
 #include "wren_common.h"
-#include "wren_compiler.h"
+#include "wren_compiler_bytecode.h"
 #include "wren_value.h"
 #include "wren_utils.h"
 
@@ -49,7 +49,7 @@ struct WrenVM
   // whose key is null) for the module's name and the value is the ObjModule
   // for the module.
   ObjMap* modules;
-  
+
   // The most recently imported module. More specifically, the module whose
   // code has most recently finished executing.
   //
@@ -85,11 +85,11 @@ struct WrenVM
   Obj* tempRoots[WREN_MAX_TEMP_ROOTS];
 
   int numTempRoots;
-  
+
   // Pointer to the first node in the linked list of active handles or NULL if
   // there are none.
   WrenHandle* handles;
-  
+
   // Pointer to the bottom of the range of stack slots available for use from
   // the C API. During a foreign method, this will be in the stack of the fiber
   // that is executing a method.
@@ -100,7 +100,7 @@ struct WrenVM
   Value* apiStack;
 
   WrenConfiguration config;
-  
+
   // Compiler and debugger data:
 
   // The compiler that is currently compiling code. This is used so that heap

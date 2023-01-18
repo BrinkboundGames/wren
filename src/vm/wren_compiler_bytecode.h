@@ -1,5 +1,5 @@
-#ifndef wren_compiler_h
-#define wren_compiler_h
+#ifndef wren_compiler_bytecode_h
+#define wren_compiler_bytecode_h
 
 #include "wren.h"
 #include "wren_value.h"
